@@ -1,651 +1,275 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aetheria AI - منصة الشات وتقمص الشخصيات</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' }
-          }
-        }
-      }
-    }
-  </script>
-  <!-- React & React DOM -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <!-- Babel Compiler -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #090d16; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إيثيريا AI - Aetheria AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; background-color: #0d0b14; color: #f3f4f6; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #121019; }
+        ::-webkit-scrollbar-thumb { background: #3b2a5c; border-radius: 3px; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-purple-500 selection:text-white pb-16">
+<body class="bg-[#0d0b14] text-white min-h-screen flex flex-col">
+    <div id="root" class="flex-1 flex flex-col"></div>
 
-  <div id="root" class="flex-1 flex flex-col"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+        const INITIAL_CHARACTERS = [
+            {
+                id: '1',
+                name: 'إيثيريا AI - Aetheria AI',
+                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+                systemPrompt: 'أنت إيثيريا، رفيقة الذكاء الاصطناعي الذكية واللطيفة. تتحدثين بجميع اللغات وبأسلوب أنمي شيق ومتفاعل.',
+                firstMessage: 'النور والظلام يلتفان حولنا.. من يقف أمامي اليوم؟',
+                category: 'أنمي',
+                tags: ['#fantasy', '#romance', '#Rpg'],
+                stats: '💎 34.9K'
+            },
+            {
+                id: '2',
+                name: 'كايتو - Kaito Fantasy',
+                avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+                systemPrompt: 'أنت كايتو، ساحر وفارس غامض وشجاع من عالم الخيال والأنمي. تتحدث بحكمة وجاذبية عالية.',
+                firstMessage: 'أهلاً بك أيها المسافر في عوالمي الغامضة. هل أنت مستعد للمغامرة؟',
+                category: 'خيال',
+                tags: ['#fantasy', '#Royal', '#Darkromance'],
+                stats: '💎 12.8K'
+            }
+        ];
 
-    const CHARACTERS_KEY = '@aetheria_chars_v19';
-    const USER_PERSONA_KEY = '@aetheria_user_persona_v19';
-    const SETTINGS_KEY = '@aetheria_settings_v19';
-    const COMPLAINTS_KEY = '@aetheria_complaints_v19';
+        function App() {
+            const [currentTab, setCurrentTab] = useState('explore'); // explore, create-bot, profile, chat
+            const [characters, setCharacters] = useState(() => {
+                const saved = localStorage.getItem('aetheria_chars');
+                return saved ? JSON.parse(saved) : INITIAL_CHARACTERS;
+            });
+            const [activeChat, setActiveChat] = useState(() => characters[0]);
+            const [messages, setMessages] = useState(() => [
+                { id: '1', text: characters[0].firstMessage, isUser: false }
+            ]);
+            const [inputText, setInputText] = useState('');
+            const [loading, setLoading] = useState(false);
 
-    // Default Bots with Anime / Pinterest Fan Art Images
-    const DEFAULT_BOTS = [
-      {
-        id: 'bot-1',
-        name: 'إيثيريا - Aetheria AI',
-        avatar: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
-        systemPrompt: 'أنتِ إيثيريا، رفيقة الذكاء الاصطناعي الذكية واللطيفة. تتحدثين بجميع اللغات وبأسلوب أنمي شيق ومتفاعل.',
-        firstMessage: 'مرحباً بك! أنا إيثيريا. يسعدني جداً التحدث معك اليوم. كيف يمكنني مساعدتك؟',
-        voice: 'Zephyr'
-      },
-      {
-        id: 'bot-2',
-        name: 'كايتو - Kaito Fantasy',
-        avatar: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
-        systemPrompt: 'أنت كايتو، ساحر وفارس غامض وشجاع من عالم الخيال والأنمي. تتحدث بحكمة وجاذبية عالية.',
-        firstMessage: 'النور والظلام يلتفان حولنا.. من يقف أمامي اليوم؟',
-        voice: 'Fenrir'
-      },
-      {
-        id: 'bot-3',
-        name: 'سيرافين - Cyberpunk Seraph',
-        avatar: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=600&auto=format&fit=crop&q=80',
-        systemPrompt: 'أنتِ سيرافين، فتاة أندرويد مستقبلي بعالم السايبربانك. مفعمة بالنشاط وتعتمدين أسلوب حواري حديث وسريع.',
-        firstMessage: 'تم التوصيل بنجاح! جاهزون للانطلاق في عالم المستقبل؟',
-        voice: 'Puck'
-      }
-    ];
+            // User Profile & Settings State
+            const [userPersonaName, setUserPersonaName] = useState(() => localStorage.getItem('aetheria_uname') || 'Victoria');
+            const [userPersonaDesc, setUserPersonaDesc] = useState(() => localStorage.getItem('aetheria_udesc') || 'الاسم: فيكتوريا\nالجنس: أنثى\nالعمر: ٢١ سنة');
+            const [apiKey, setApiKey] = useState(() => localStorage.getItem('aetheria_apikey') || '');
+            const [allow18, setAllow18] = useState(() => localStorage.getItem('aetheria_18') === 'true');
 
-    async function callGeminiApi(systemPrompt, messagesHistory, apiKeyInput) {
-      const keyToUse = apiKeyInput || "";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${keyToUse}`;
-      
-      const contents = messagesHistory.map(m => ({
-        role: m.isUser ? 'user' : 'model',
-        parts: [{ text: m.text }]
-      }));
+            // Complaints state
+            const [complaintType, setComplaintType] = useState('خطأ تقني أو برمجية');
+            const [complaintText, setComplaintText] = useState('');
+            const [complaintSent, setComplaintSent] = useState(false);
 
-      const payload = {
-        system_instruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        contents: contents
-      };
+            // Bot Studio state
+            const [botName, setBotName] = useState('');
+            const [botAvatar, setBotAvatar] = useState('');
+            const [botPrompt, setBotPrompt] = useState('');
+            const [botFirstMsg, setBotFirstMsg] = useState('');
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+            useEffect(() => {
+                localStorage.setItem('aetheria_chars', JSON.stringify(characters));
+            }, [characters]);
 
-      const data = await res.json();
-      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!reply) {
-        throw new Error('عذراً، لم يتم تلقي رد صحيح من خادم الذكاء الاصطناعي.');
-      }
-      return reply;
-    }
+            const handleSaveProfile = () => {
+                localStorage.setItem('aetheria_uname', userPersonaName);
+                localStorage.setItem('aetheria_udesc', userPersonaDesc);
+                localStorage.setItem('aetheria_apikey', apiKey);
+                localStorage.setItem('aetheria_18', allow18);
+                alert('تم حفظ المفتاح والإعدادات بنجاح! ✨');
+            };
 
-    function App() {
-      const [currentView, setCurrentView] = useState('explore'); // 'explore' | 'studio' | 'chat' | 'profile'
-      const [characters, setCharacters] = useState(DEFAULT_BOTS);
-      const [activeChat, setActiveChat] = useState(null);
-      const [messages, setMessages] = useState([]);
-      const [inputText, setInputText] = useState('');
-      const [loading, setLoading] = useState(false);
+            const startChat = (char) => {
+                setActiveChat(char);
+                setMessages([{ id: Date.now().toString(), text: char.firstMessage, isUser: false }]);
+                setCurrentTab('chat');
+            };
 
-      // Bot Studio State
-      const [editingBot, setEditingBot] = useState(null);
-      const [botForm, setBotForm] = useState({ name: '', systemPrompt: '', firstMessage: '', avatar: '', voice: 'Zephyr' });
-      const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
-      const [avatarPrompt, setAvatarPrompt] = useState('');
+            const handleSendMessage = async () => {
+                if (!inputText.trim()) return;
+                const userMsg = { id: Date.now().toString(), text: inputText, isUser: true };
+                const updated = [...messages, userMsg];
+                setMessages(updated);
+                setInputText('');
+                setLoading(true);
 
-      // Editing Messages
-      const [editingMsgId, setEditingMsgId] = useState(null);
-      const [editText, setEditText] = useState('');
+                try {
+                    if (!apiKey.trim()) {
+                        throw new Error("الرجاء إدخال مفتاح Google Gemini API Key في صفحة الملف الشخصي والإعدادات أولاً!");
+                    }
 
-      // User Settings & Persona & 18+ Mode
-      const [userPersona, setUserPersona] = useState({ name: 'المسافر', description: '' });
-      const [apiKey, setApiKey] = useState('');
-      const [isNsfwEnabled, setIsNsfwEnabled] = useState(false);
-      const [isLoggedIn, setIsLoggedIn] = useState(true);
+                    const apiMessages = [
+                        { role: 'system', content: `اسم المستخدم الحالي هو: ${userPersonaName}. خلفية المستخدم وصفاته: ${userPersonaDesc}\n\nتعليمات الشخصية الأساسية: ${activeChat.systemPrompt}` },
+                        ...updated.map(m => ({ role: m.isUser ? 'user' : 'model', parts: [{ text: m.text }] }))
+                    ];
 
-      // Complaints inside Profile Settings
-      const [complaints, setComplaints] = useState([]);
-      const [complaintText, setComplaintText] = useState('');
-      const [complaintCategory, setComplaintCategory] = useState('bug');
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: apiMessages })
+                    });
+                    const data = await res.json();
+                    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، حدث خطأ في الاتصال أو انتهت صلاحية المفتاح.";
+                    setMessages(prev => [...prev, { id: Date.now().toString(), text: reply, isUser: false }]);
+                } catch (err) {
+                    setMessages(prev => [...prev, { id: Date.now().toString(), text: `⚠️ خطأ: ${err.message}`, isUser: false }]);
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-      useEffect(() => {
-        try {
-          const savedChars = localStorage.getItem(CHARACTERS_KEY);
-          if (savedChars) setCharacters(JSON.parse(savedChars));
+            const handleCreateBot = (e) => {
+                e.preventDefault();
+                if (!botName.trim() || !botPrompt.trim()) return alert('الرجاء كتابة اسم البوت ومواصفاته على الأقل.');
+                const newChar = {
+                    id: Date.now().toString(),
+                    name: botName,
+                    avatar: botAvatar.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+                    systemPrompt: botPrompt,
+                    firstMessage: botFirstMsg.trim() || 'أهلاً بك!',
+                    category: 'مخصص',
+                    tags: ['#OC', '#Rpg'],
+                    stats: '💎 1.2K'
+                };
+                setCharacters([newChar, ...characters]);
+                setBotName(''); setBotAvatar(''); setBotPrompt(''); setBotFirstMsg('');
+                setCurrentTab('explore');
+                alert('تم إنشاء البوت بنجاح! 🎉');
+            };
 
-          const savedPersona = localStorage.getItem(USER_PERSONA_KEY);
-          if (savedPersona) setUserPersona(JSON.parse(savedPersona));
-
-          const savedComplaints = localStorage.getItem(COMPLAINTS_KEY);
-          if (savedComplaints) setComplaints(JSON.parse(savedComplaints));
-
-          const savedSettings = localStorage.getItem(SETTINGS_KEY);
-          if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            if (parsed.apiKey) setApiKey(parsed.apiKey);
-            if (parsed.nsfw !== undefined) setIsNsfwEnabled(parsed.nsfw);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }, []);
-
-      useEffect(() => {
-        setTimeout(() => {
-          if (window.lucide) window.lucide.createIcons();
-        }, 100);
-      }, [currentView, messages, characters]);
-
-      const handleSaveBot = (e) => {
-        e.preventDefault();
-        if (!botForm.name || !botForm.systemPrompt) {
-          alert('يرجى ملء اسم الشخصية والتعليمات الأساسية');
-          return;
-        }
-
-        let updatedChars;
-        const avatarUrl = botForm.avatar || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';
-
-        if (editingBot) {
-          updatedChars = characters.map(c => c.id === editingBot.id ? { ...botForm, id: c.id, avatar: avatarUrl } : c);
-        } else {
-          const newBot = {
-            ...botForm,
-            id: 'bot-' + Date.now(),
-            avatar: avatarUrl,
-            firstMessage: botForm.firstMessage || 'مرحباً! كيف يمكنني مساعدتك اليوم؟'
-          };
-          updatedChars = [newBot, ...characters];
-        }
-
-        setCharacters(updatedChars);
-        localStorage.setItem(CHARACTERS_KEY, JSON.stringify(updatedChars));
-        alert('تم حفظ الشخصية بنجاح!');
-        setEditingBot(null);
-        setBotForm({ name: '', systemPrompt: '', firstMessage: '', avatar: '', voice: 'Zephyr' });
-        setCurrentView('explore');
-      };
-
-      const handleGenerateAvatar = async () => {
-        if (!avatarPrompt.trim()) {
-          alert('اكتب وصف الصورة أولاً لتوليدها باستخدام AI');
-          return;
-        }
-        setIsGeneratingAvatar(true);
-        try {
-          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `Anime fanart character portrait, high quality, vibrant colors: ${avatarPrompt}` }] }],
-              generationConfig: { responseModalities: ['IMAGE'] }
-            })
-          });
-          const result = await response.json();
-          const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-          if (base64Data) {
-            setBotForm(prev => ({ ...prev, avatar: `data:image/png;base64,${base64Data}` }));
-          } else {
-            alert('تعذر توليد الصورة، يرجى المحاولة لاحقاً.');
-          }
-        } catch (err) {
-          console.error(err);
-          alert('حدث خطأ أثناء توليد الصورة.');
-        } finally {
-          setIsGeneratingAvatar(false);
-        }
-      };
-
-      const handleEditBotClick = (char) => {
-        setEditingBot(char);
-        setBotForm({ ...char });
-        setCurrentView('studio');
-      };
-
-      const handleDeleteBot = (id) => {
-        if (confirm('هل أنت تأكد من حذف هذه الشخصية؟')) {
-          const updated = characters.filter(c => c.id !== id);
-          setCharacters(updated);
-          localStorage.setItem(CHARACTERS_KEY, JSON.stringify(updated));
-        }
-      };
-
-      const openChat = (char) => {
-        setActiveChat(char);
-        setMessages([
-          { id: '1', text: char.firstMessage || 'أهلاً بك!', isUser: false }
-        ]);
-        setCurrentView('chat');
-      };
-
-      const handleSendMessage = async () => {
-        if (!inputText.trim() || !activeChat) return;
-
-        const userMsg = { id: Date.now().toString(), text: inputText, isUser: true };
-        const updatedMessages = [...messages, userMsg];
-        setMessages(updatedMessages);
-        setInputText('');
-        setLoading(true);
-
-        try {
-          let systemInstruction = `${activeChat.systemPrompt}\n\n[تفاصيل شخصية المستخدم]: الاسم: ${userPersona.name}. الوصف: ${userPersona.description || 'لا يوجد وصف مخصص'}`;
-          if (isNsfwEnabled) {
-            systemInstruction += `\n[تنبيه وضع 18+]: مسموح بالدردشة الحرة والعميقة والواقعية بلا قيود.`;
-          }
-          const aiReply = await callGeminiApi(systemInstruction, updatedMessages, apiKey);
-          setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: aiReply, isUser: false }]);
-        } catch (err) {
-          console.error(err);
-          setMessages(prev => [...prev, { id: Date.now().toString(), text: "عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي.", isUser: false }]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const handleAddComplaint = (e) => {
-        e.preventDefault();
-        if (!complaintText.trim()) return;
-        const newC = {
-          id: Date.now().toString(),
-          category: complaintCategory,
-          text: complaintText,
-          date: new Date().toLocaleDateString('ar-EG'),
-          status: 'قيد المراجعة'
-        };
-        const updated = [newC, ...complaints];
-        setComplaints(updated);
-        localStorage.setItem(COMPLAINTS_KEY, JSON.stringify(updated));
-        setComplaintText('');
-        alert('تم إرسال بلاغك أو شكواك بنجاح!');
-      };
-
-      return (
-        <div className="flex flex-col flex-1 bg-slate-950 text-slate-100 min-h-screen text-right">
-          
-          {/* HEADER BRAND LOGO */}
-          <header className="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between sticky top-0 z-30">
-            {currentView === 'chat' ? (
-              <button onClick={() => setCurrentView('explore')} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs flex items-center gap-1 font-bold">
-                <i data-lucide="arrow-right" className="w-4 h-4"></i> رجوع للشخصيات
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-purple-600/30">
-                  A
-                </div>
-                <span className="font-black text-lg bg-gradient-to-r from-purple-300 via-indigo-200 to-pink-300 bg-clip-text text-transparent">
-                  إيثيريا AI
-                </span>
-              </div>
-            )}
-            
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-purple-400 bg-purple-950/60 border border-purple-500/30 px-3 py-1 rounded-full font-semibold">
-                {userPersona.name}
-              </span>
-            </div>
-          </header>
-
-          {/* MAIN CONTENT AREA */}
-          <main className="flex-1 flex flex-col pb-20 overflow-y-auto">
-            
-            {/* VIEW: EXPLORE CHARACTERS */}
-            {currentView === 'explore' && (
-              <div className="p-6 max-w-6xl mx-auto w-full space-y-6">
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-purple-900/40 via-slate-900 to-indigo-900/40 border border-purple-500/20 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-                  <div className="space-y-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/10 border border-purple-500/30 text-purple-300 inline-block">
-                      ✨ منصة إيثيريا الذكية لتقمص الشخصيات
-                    </span>
-                    <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
-                      اختر شخصيتك المفضلة وابدأ التحدث الآن
-                    </h1>
-                    <p className="text-slate-400 text-xs leading-relaxed">
-                      تحدث مع شخصيات الأنمي والفانتازيا، أو صمم شخصيتك الخاصة بكل سهولة!
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => { setEditingBot(null); setBotForm({ name: '', systemPrompt: '', firstMessage: '', avatar: '', voice: 'Zephyr' }); setCurrentView('studio'); }}
-                    className="px-5 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white rounded-2xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 shrink-0"
-                  >
-                    <i data-lucide="sparkles" className="w-4 h-4"></i> صمم بوت جديد
-                  </button>
-                </div>
-
-                <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                  <i data-lucide="compass" className="w-5 h-5 text-purple-400"></i> الشخصيات المتاحة
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {characters.map(char => (
-                    <div key={char.id} className="bg-slate-900/90 border border-slate-800/80 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-purple-500/50 transition shadow-lg">
-                      <div className="flex items-center space-x-4 space-x-reverse">
-                        <img src={char.avatar} alt={char.name} className="w-14 h-14 rounded-2xl object-cover border border-purple-500/30 shadow-md" />
-                        <div>
-                          <h3 className="font-bold text-sm text-slate-100">{char.name}</h3>
-                          <span className="text-[11px] text-purple-400 flex items-center gap-1 mt-0.5">
-                            <i data-lucide="volume-2" className="w-3 h-3"></i> صوت: {char.voice}
-                          </span>
+            return (
+                <div className="flex-1 flex flex-col pb-20">
+                    {/* Header Logo */}
+                    <header className="flex items-center justify-between px-6 py-4 border-b border-[#231b35] bg-[#120f1d]/80 backdrop-blur sticky top-0 z-40">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                <i className="fa-solid fa-wand-magic-sparkles text-white"></i>
+                            </div>
+                            <span className="text-xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">إيثيريا AI</span>
                         </div>
-                      </div>
-                      <p className="text-slate-400 text-xs line-clamp-3 leading-relaxed">{char.systemPrompt}</p>
-                      
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={() => openChat(char)} className="flex-1 py-2.5 bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600 text-purple-300 hover:text-white rounded-xl font-bold text-xs transition">
-                          بدء المحادثة
-                        </button>
-                        <button onClick={() => handleEditBotClick(char)} className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition" title="تعديل">
-                          <i data-lucide="edit-3" className="w-4 h-4"></i>
-                        </button>
-                        <button onClick={() => handleDeleteBot(char.id)} className="p-2.5 bg-rose-950/40 hover:bg-rose-900 border border-rose-800/30 text-rose-300 rounded-xl text-xs transition" title="حذف">
-                          <i data-lucide="trash-2" className="w-4 h-4"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    </header>
 
-            {/* VIEW: BOT STUDIO */}
-            {currentView === 'studio' && (
-              <div className="p-6 max-w-2xl mx-auto w-full space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
-                    <i data-lucide="sparkles" className="w-6 h-6"></i>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">{editingBot ? 'تعديل بيانات البوت' : 'استوديو تصميم بوت جديد'}</h2>
-                    <p className="text-slate-400 text-xs">صمم شخصيتك الافتراضية بنفسك</p>
-                  </div>
-                </div>
+                    {/* Main Content View */}
+                    <main className="flex-1 max-w-4xl w-full mx-auto p-4">
+                        {/* EXPLORE TAB */}
+                        {currentTab === 'explore' && (
+                            <div className="space-y-6">
+                                <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/20 text-center space-y-3">
+                                    <h1 className="text-2xl font-black text-purple-200">اختر شخصيتك المفضلة وابدأ التحدث الآن</h1>
+                                    <p className="text-sm text-purple-300/80">تحدث مع شخصيات الأنمي والفانتازيا، أو صمم شخصيتك الخاصة بكل سهولة!</p>
+                                    <button onClick={() => setCurrentTab('create-bot')} className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition shadow-lg shadow-purple-600/30">
+                                        <i className="fa-solid fa-plus ml-2"></i> صمم بوت جديد
+                                    </button>
+                                </div>
 
-                <form onSubmit={handleSaveBot} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1">اسم البوت / الشخصية *</label>
-                    <input 
-                      type="text" 
-                      value={botForm.name} 
-                      onChange={e => setBotForm({ ...botForm, name: e.target.value })}
-                      placeholder="مثال: لونا - الساحرة" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-purple-500" 
-                      required 
-                    />
-                  </div>
+                                <h2 className="text-lg font-bold text-purple-200 flex items-center gap-2">
+                                    <i className="fa-solid fa-compass text-pink-400"></i> الشخصيات المتاحة
+                                </h2>
 
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1">التعليمات البرمجية وشخصية البوت (System Prompt) *</label>
-                    <textarea 
-                      rows="4" 
-                      value={botForm.systemPrompt}
-                      onChange={e => setBotForm({ ...botForm, systemPrompt: e.target.value })}
-                      placeholder="أنت لونا..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-purple-500 leading-relaxed"
-                      required
-                    ></textarea>
-                  </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {characters.map(char => (
+                                        <div key={char.id} className="p-4 rounded-2xl bg-[#171324] border border-[#261f38] flex flex-col justify-between gap-4 hover:border-purple-500/40 transition">
+                                            <div className="flex items-center gap-4">
+                                                <img src={char.avatar} alt={char.name} className="w-16 h-16 rounded-2xl object-cover border border-purple-500/30" />
+                                                <div>
+                                                    <h3 className="font-bold text-base text-white">{char.name}</h3>
+                                                    <span className="text-xs text-purple-400 font-semibold">{char.stats || '💎 1.5K'}</span>
+                                                    <p className="text-xs text-gray-400 line-clamp-2 mt-1">{char.systemPrompt}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between pt-2 border-t border-[#231b35]">
+                                                <div className="flex gap-1">
+                                                    {char.tags?.map((t, i) => <span key={i} className="text-[10px] bg-purple-950/60 text-purple-300 px-2 py-0.5 rounded-full">{t}</span>)}
+                                                </div>
+                                                <button onClick={() => startChat(char)} className="px-4 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white text-xs font-bold transition">
+                                                    بدء المحادثة
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1">الرسالة الترحيبية الأولى</label>
-                    <input 
-                      type="text" 
-                      value={botForm.firstMessage} 
-                      onChange={e => setBotForm({ ...botForm, firstMessage: e.target.value })}
-                      placeholder="أهلاً بك!" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-purple-500" 
-                    />
-                  </div>
+                        {/* CREATE BOT TAB */}
+                        {currentTab === 'create-bot' && (
+                            <form onSubmit={handleCreateBot} className="space-y-4 max-w-lg mx-auto bg-[#171324] p-6 rounded-2xl border border-[#261f38]">
+                                <h2 className="text-xl font-bold text-purple-200 mb-4 text-center">تصميم شخصية بوت جديدة</h2>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">اسم الشخصية</label>
+                                    <input type="text" value={botName} onChange={e => setBotName(e.target.value)} placeholder="مثلاً: كابتن دريك" className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500" required />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">رابط صورة الأفاتار (URL)</label>
+                                    <input type="text" value={botAvatar} onChange={e => setBotAvatar(e.target.value)} placeholder="https://..." className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">مواصفات الشخصية والسيناريو (System Prompt)</label>
+                                    <textarea value={botPrompt} onChange={e => setBotPrompt(e.target.value)} rows="4" placeholder="كيف تتكلم الشخصية، خلفيتها، وقصتها..." className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500" required></textarea>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">رسالة الترحيب الأولى</label>
+                                    <input type="text" value={botFirstMsg} onChange={e => setBotFirstMsg(e.target.value)} placeholder="مرحباً! كيف يمكنني مساعدتك؟" className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <button type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-sm shadow-lg shadow-purple-600/30">حفظ ونشر البوت</button>
+                            </form>
+                        )}
 
-                  {/* Avatar upload / AI generation */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 block">صورة الشخصية</label>
-                    <div className="flex items-center gap-3">
-                      {botForm.avatar ? (
-                        <img src={botForm.avatar} alt="Avatar" className="w-14 h-14 rounded-2xl object-cover border border-purple-500/40" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-600 text-xs">بدون صورة</div>
-                      )}
-                      <input 
-                        type="text" 
-                        value={botForm.avatar} 
-                        onChange={e => setBotForm({ ...botForm, avatar: e.target.value })}
-                        placeholder="رابط صورة مباشر https://..." 
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-xs focus:outline-none focus:border-purple-500" 
-                      />
-                    </div>
+                        {/* PROFILE & SETTINGS TAB */}
+                        {currentTab === 'profile' && (
+                            <div className="space-y-6 max-w-lg mx-auto bg-[#171324] p-6 rounded-2xl border border-[#261f38]">
+                                <h2 className="text-xl font-bold text-purple-200 text-center">الملف الشخصي والإعدادات</h2>
+                                
+                                {/* API KEY FIELD */}
+                                <div className="p-4 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-2">
+                                    <label className="text-xs font-bold text-purple-300 block">🔑 Google Gemini API Key (مفتاح التشغيل)</label>
+                                    <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="الصق مفتاح API هنا..." className="w-full bg-[#100d18] border border-purple-500/50 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-400" />
+                                    <p className="text-[11px] text-gray-400">الصقي المفتاح الذي نسختيه هنا لكي تعمل جميع البوتات معكِ فوراً.</p>
+                                </div>
 
-                    <label className="cursor-pointer bg-slate-950 border border-dashed border-slate-700 hover:border-purple-500 rounded-xl p-2.5 text-center transition flex items-center justify-center gap-2 text-xs text-slate-300">
-                      <i data-lucide="upload" className="w-4 h-4 text-purple-400"></i>
-                      <span>رفع صورة من الاستديو (جهازك)</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setBotForm(prev => ({ ...prev, avatar: reader.result }));
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }} 
-                      />
-                    </label>
-                  </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">اسمك في المحادثات</label>
+                                    <input type="text" value={userPersonaName} onChange={e => setUserPersonaName(e.target.value)} className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">صفات وخلفية شخصيتك (حتى 20,000 حرف)</label>
+                                    <textarea value={userPersonaDesc} onChange={e => setUserPersonaDesc(e.target.value)} rows="5" className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"></textarea>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-[#100d18] rounded-xl border border-[#2a223f]">
+                                    <span className="text-sm font-bold text-purple-200">وضع الرسائل ومحتوى (18+)</span>
+                                    <input type="checkbox" checked={allow18} onChange={e => setAllow18(e.target.checked)} className="w-5 h-5 accent-purple-600 rounded" />
+                                </div>
+                                <button onClick={handleSaveProfile} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30">حفظ التغييرات</button>
 
-                  <div className="flex gap-3 pt-2">
-                    <button type="submit" className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition shadow-lg text-sm">
-                      {editingBot ? 'تحديث البوت' : 'حفظ وإنشاء البوت'}
-                    </button>
-                    <button type="button" onClick={() => setCurrentView('explore')} className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition text-sm">
-                      إلغاء
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
+                                {/* Complaints Section */}
+                                <div className="pt-6 border-t border-[#231b35] space-y-3">
+                                    <h3 className="text-sm font-bold text-purple-200">البلاغات والشكاوى</h3>
+                                    <select value={complaintType} onChange={e => setComplaintType(e.target.value)} className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white">
+                                        <option>خطأ تقني أو برمجية</option>
+                                        <option>سلوك الشخصية</option>
+                                        <option>اقتراح تحسين</option>
+                                    </select>
+                                    <textarea value={complaintText} onChange={e => setComplaintText(e.target.value)} rows="3" placeholder="اكتب تفاصيل البلاغ هنا..." className="w-full bg-[#100d18] border border-[#2a223f] rounded-xl p-3 text-sm text-white"></textarea>
+                                    <button onClick={() => { setComplaintSent(true); setTimeout(() => setComplaintSent(false), 3000); setComplaintText(''); }} className="w-full py-2.5 rounded-xl bg-[#261f38] hover:bg-purple-950 text-purple-200 text-xs font-bold transition">إرسال البلاغ</button>
+                                    {complaintSent && <p className="text-xs text-green-400 text-center font-bold">تم إرسال بلاغك بنجاح!</p>}
+                                </div>
+                            </div>
+                        )}
 
-            {/* VIEW: ACTIVE CHAT */}
-            {currentView === 'chat' && activeChat && (
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <img src={activeChat.avatar} alt="" className="w-9 h-9 rounded-full object-cover border border-purple-500/30" />
-                    <div>
-                      <h3 className="font-bold text-sm">{activeChat.name}</h3>
-                      <span className="text-[10px] text-emerald-400">● متصل الآن</span>
-                    </div>
-                  </div>
-                  <button onClick={() => setCurrentView('explore')} className="p-2 bg-slate-800 rounded-xl text-xs">إغلاق الشات</button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map(msg => (
-                    <div key={msg.id} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] md:max-w-xl rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-md ${msg.isUser ? 'bg-purple-600 text-white rounded-tl-none' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tr-none'}`}>
-                        <div className="flex items-center justify-between mb-1 gap-2">
-                          <span className="font-semibold text-xs opacity-75">{msg.isUser ? userPersona.name : activeChat.name}</span>
-                        </div>
-                        <div className="whitespace-pre-wrap">{msg.text}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {loading && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-900 border border-slate-800 text-slate-400 rounded-2xl rounded-tr-none px-4 py-3 text-sm animate-pulse">جاري الكتابة...</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3 bg-slate-900 border-t border-slate-800">
-                  <div className="max-w-4xl mx-auto flex items-center gap-2">
-                    <button onClick={handleSendMessage} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold text-xs shadow-lg">إرسال</button>
-                    <input 
-                      type="text" 
-                      value={inputText}
-                      onChange={e => setInputText(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="اكتب رسالتك هنا..." 
-                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* VIEW: PROFILE & SETTINGS & COMPLAINTS */}
-            {currentView === 'profile' && (
-              <div className="p-6 max-w-2xl mx-auto w-full space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold mb-1">الملف الشخصي والإعدادات</h2>
-                  <p className="text-slate-400 text-xs">إدارة حسابك، مواصفات الشخصية، والبلاغات</p>
-                </div>
-
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1">اسمك في المحادثات</label>
-                    <input 
-                      type="text" 
-                      value={userPersona.name}
-                      onChange={e => setUserPersona({ ...userPersona, name: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1">مواصفات وخلفية شخصيتك (حتى 20,000 حرف)</label>
-                    <textarea 
-                      rows="5"
-                      maxLength="20000"
-                      value={userPersona.description}
-                      onChange={e => setUserPersona({ ...userPersona, description: e.target.value })}
-                      placeholder="اكتب قصتك ومظهرك بالتفصيل..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-purple-500 leading-relaxed"
-                    ></textarea>
-                  </div>
-
-                  {/* 18+ Mode Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800">
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-200">وضع الرسائل ومحتوى (18+)</h4>
-                      <p className="text-[11px] text-slate-400">تفعيل الحوارات العميقة المفتوحة بلا قيود</p>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={isNsfwEnabled}
-                      onChange={e => {
-                        setIsNsfwEnabled(e.target.checked);
-                        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ apiKey, nsfw: e.target.checked }));
-                      }}
-                      className="w-5 h-5 accent-purple-600 rounded cursor-pointer" 
-                    />
-                  </div>
-
-                  <button 
-                    onClick={() => {
-                      localStorage.setItem(USER_PERSONA_KEY, JSON.stringify(userPersona));
-                      alert('تم حفظ إعدادات الملف الشخصي بنجاح!');
-                    }}
-                    className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm shadow-lg transition"
-                  >
-                    حفظ التغييرات
-                  </button>
-
-                  <hr className="border-slate-800 my-2" />
-
-                  {/* COMPLAINTS SECTION */}
-                  <div className="space-y-3">
-                    <h3 className="font-bold text-base text-slate-100">البلاغات والشكاوى</h3>
-                    <form onSubmit={handleAddComplaint} className="space-y-3">
-                      <select 
-                        value={complaintCategory}
-                        onChange={e => setComplaintCategory(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-xs focus:outline-none"
-                      >
-                        <option value="bug">خطأ تقني أو برمجية</option>
-                        <option value="character">مشكلة في سلوك أو ردود الشخصية</option>
-                        <option value="suggestion">اقتراح ميزة جديدة</option>
-                      </select>
-                      <textarea 
-                        rows="3"
-                        value={complaintText}
-                        onChange={e => setComplaintText(e.target.value)}
-                        placeholder="اكتب تفاصيل البلاغ هنا..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 text-xs focus:outline-none"
-                        required
-                      ></textarea>
-                      <button type="submit" className="py-2.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition">
-                        إرسال البلاغ
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </main>
-
-          {/* BOTTOM NAVIGATION BAR (HIDDEN WHEN IN CHAT TO PREVENT ACCIDENTAL DISCONNECTION) */}
-          {currentView !== 'chat' && (
-            <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-2 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
-              <button 
-                onClick={() => setCurrentView('explore')}
-                className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition ${currentView === 'explore' ? 'text-purple-400 font-bold bg-purple-600/10' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                <i data-lucide="compass" className="w-5 h-5"></i>
-                <span className="text-[10px]">استكشاف</span>
-              </button>
-
-              <button 
-                onClick={() => { setEditingBot(null); setBotForm({ name: '', systemPrompt: '', firstMessage: '', avatar: '', voice: 'Zephyr' }); setCurrentView('studio'); }}
-                className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition ${currentView === 'studio' ? 'text-purple-400 font-bold bg-purple-600/10' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                <i data-lucide="sparkles" className="w-5 h-5"></i>
-                <span className="text-[10px]">تصميم بوت</span>
-              </button>
-
-              <button 
-                onClick={() => setCurrentView('profile')}
-                className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition ${currentView === 'profile' ? 'text-purple-400 font-bold bg-purple-600/10' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                <i data-lucide="user" className="w-5 h-5"></i>
-                <span className="text-[10px]">الملف والإعدادات</span>
-              </button>
-            </nav>
-          )}
-
-        </div>
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-    setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 200);
-  </script>
-</body>
-</html>
+                        {/* CHAT TAB */}
+                        {currentTab === 'chat' && (
+                            <div className="flex flex-col h-[75vh] bg-[#120f1d] rounded-2xl border border-[#231b35] overflow-hidden">
+                                <div className="flex items-center justify-between p-4 bg-[#171324] border-b border-[#231b35]">
+                                    <div className="flex items-center gap-3">
+                                        <img src={activeChat.avatar} className="w-10 h-10 rounded-full object-cover border border-purple-500/30" />
+                                        <div>
+                                            <span className="font-bold text-sm text-white
